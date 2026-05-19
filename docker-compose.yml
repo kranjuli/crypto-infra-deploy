@@ -1,27 +1,55 @@
 services:
+  kitchen-notes:
+    build:
+        context: ../kitchen-notes
+        dockerfile: Dockerfile
+    image: kitchen-notes:latest
+    # volumes:
+    #  - ${KITCHEN_NOTES_DATA_ROOT}:/app/data
+    # container_name: crypto-tracker
+    ports:
+      - "5001:5000"
+    restart: unless-stopped
   crypto-tracker:
+    build:
+        context: ../crypto-tracker
+        dockerfile: Dockerfile
+
     image: crypto-tracker:latest
     volumes:
-      - ${CRYPTO_TRACKER_DATA_ROOT}:/app/data
-    container_name: crypto-tracker
+      - ${DATA_ROOT}/${CRYPTO_TRACKER_DATA_ROOT}:/app/data
+    # container_name: crypto-tracker
     ports:
       - "8000:8000"
 
   trade-vista:
+    build:
+      context: ../trade-vista
+      dockerfile: Dockerfile
+
     image: trade-vista:latest
-    container_name: trade-vista
+
+    # container_name: trade-vista
     volumes:
-      - ${TRADE_VISTA_TRANSACTIONS_ROOT}:/app/transactions:ro
+      - ${DATA_ROOT}/${TRADE_VISTA_TRANSACTIONS_ROOT}:/app/transactions:ro
     ports:
       - "8080:8080"
 
   nginx:
     image: nginx:latest
-    container_name: nginx
+    # container_name: nginx
     ports:
       - "80:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+
     depends_on:
       - crypto-tracker
       - trade-vista
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s

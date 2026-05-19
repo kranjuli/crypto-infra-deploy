@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -o pipefail
 
 # --- Load environment variables ---
 if [ -f .env ]; then
@@ -23,21 +23,31 @@ DOCKER_COMPOSE="docker compose"
 case "$1" in
     start)
         echo "🚀 Starting infrastructure..."
-        $DOCKER_COMPOSE up -d --build
+        $DOCKER_COMPOSE up -d --build --remove-orphans | {
+            echo "❌ Docker Compose start failed."
+            exit 1
+        }
 
         echo "✅ Containers are running."
         echo ""
         echo "🌐 Access:"
-        echo " - Crypto Tracker: http://localhost/cryptotracker/"
-        echo " - Trade Vista:    http://localhost/trade-vista/"
+        echo " - KitchenNotes: http://$HOSTNAME:5001/"
+        echo " - Crypto Tracker: http://$HOSTNAME:8000/"
+        echo " - Trade Vista:    http://$HOSTNAME:8080/"
         ;;
     
     stop)
         echo "🛑 Stopping infrastructure..."
-        $DOCKER_COMPOSE down
+        $DOCKER_COMPOSE down 
         echo "✅ Containers stopped."
         ;;
-    
+
+    clear)
+        echo "🧹 Stopping infrastructure and removing all images..."
+        $DOCKER_COMPOSE down -v --rmi all 
+        echo "✅ Clear complete."
+        ;;
+
     restart)
         echo "🔄 Restarting infrastructure..."
         $DOCKER_COMPOSE down
@@ -52,11 +62,17 @@ case "$1" in
     
     logs)
         echo "📜 Showing logs..."
-        $DOCKER_COMPOSE logs -f
+        $DOCKER_COMPOSE logs -f || true
+        ;;
+
+    prune)
+        echo "🧹 Pruning unused resources..."
+        docker system prune -a -f
+        echo "✅ Pruning complete."
         ;;
     
     *)
-        echo "Usage: $0 {start|stop|restart|status|logs}"
+        echo "Usage: $0 {start|stop|clear|restart|status|logs|prune}"
         exit 1
         ;;
 esac

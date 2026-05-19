@@ -1,9 +1,10 @@
-# crypto-infra-deploy
+# web-infra-deploy
 
-Deployment Infrastructure for crypto-related applications.
+Deployment Infrastructure for web applications.
 
-This project orchestrates the deployment of two services:
+This project orchestrates the deployment of three services:
 
+- `Kitchen-Notes` (Python application)
 - `Trade-Vista` (Go application) 
 - `Crypto-Tracker` (Python application)
 
@@ -12,14 +13,14 @@ Both services are exposed through a reverse proxy using Nginx.
 ## Project Structure
 
 ````
-crypto-infra-deploy/
+web-infra-deploy/
 | - nginx/
     | - nginx.conf
 | - docker-compose.yml
 | - README.md
 ````
 
-## Building Infrastructure for Crypto Applications
+## Building Infrastructure for Web Applications
 
 This section describes how the infrastructure is composed and how the different components interact.
 
@@ -27,70 +28,17 @@ This section describes how the infrastructure is composed and how the different 
 
 The system consists of three main components:
 
-. Application services: `Trade-Vista` and `Crypto-Tracker`
+. Application services: `Kitchen-Notes`, `Trade-Vista` and `Crypto-Tracker`
 . Reverse Proxy: Nginx acts as a single entry point and routes incoming HTTP requests to the approriate service.
 . Persistent Storage: Host-mounted volumes are used to persist application data outside the containers.
 
 #### Docker Compose Configuration 
 
-The `docker-compose.yml` file defines and manages all services:
-
-````
-services:
-  crypto-tracker:
-    image: crypto-tracker:latest
-    volumes:
-      - /mnt/ssd/data/crypto_tracker/data:/app/data
-    container_name: crypto-tracker
-    ports:
-      - "8000:8000"
-
-  trade-vista:
-    image: trade-vista:latest
-    container_name: trade-vista
-    volumes:
-      - /mnt/ssd/data/bvv_transactions:/app/transactions:ro
-    ports:
-      - "8080:8080"
-
-  nginx:
-    image: nginx:latest
-    container_name: nginx
-    ports:
-      - "80:80"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    depends_on:
-      - crypto-tracker
-      - trade-vista
-
-````
+The `docker-compose.yml` file defines and manages all services.
 
 #### Nginx
 
 Nginx is responsible for routing requests to the correct backend service based on the URL path.
-
-````
-http {
-    server {
-        listen 80;
-
-        location /trade-vista/ {
-            proxy_pass http://trade-vista:8080/;
-        }
-
-        location /cryptotracker/ {
-            proxy_pass http://crypto-tracker:8000/;
-        }
-    }
-}
-````
-
-Notes:
-
-- Requests to /trade-vista/ are forwarded to the Go application.
-- Requests to /cryptotracker/ are forwarded to the Python application.
-- Docker’s internal DNS allows service names (`trade-vista`, `crypto-tracker`) to be resolved automatically.
 
 ### Running the infrasctructure
 
@@ -98,6 +46,7 @@ Notes:
 
 Before starting the infrastructure, make sure the Docker images for both services are built:
 
+- kitchen-notes
 - trade-vista
 - crypto-tracker
 
@@ -107,24 +56,39 @@ You can build them using:
 
 ````bash
 # run inside each project directory
+docker build -t kitchen-notes .
+
 docker build -t trade-vista .
 
 docker build -t crypto-tracker .
 ````
 
-**Start the services**
+**Start all services**
 
 ````bash
-cd infra deploy
+cd web-infra-deploy
 
 # start all services in detached mode
-sudo docker compose up -d
+sudo docker compose up -d --build --remove-orphans
 ````
 
-To stop the services:
+**Restart, Rebuild services**
 
 ````bash
-sudo docker compose down 
+# restart nginx service
+docker compose restart nginx
+
+# rebuild nginx service
+docker compose up -d --build nginx
+````
+
+**Stop the service**
+
+To stop the service:
+
+````bash
+# remove all images and containers
+docker compose down -v --rmi all
 ````
 
 #### Using Infrastructure Management Script
@@ -154,5 +118,6 @@ The `infra.sh` script provides a simple interface to manage the entire Docker-ba
 
 Once the infrastructure is running, access the applications via your web browser:
 
-- Trade-Vista app: http://<your_host>/trade-vista
-- Crypto-Tracker app: hhtp://<your_host>/crypto-tracker
+- Kitchen Notes app: http://<your_host>:5001
+- Trade-Vista app: http://<your_host>:8080
+- Crypto-Tracker app: hhtp://<your_host>:8000
